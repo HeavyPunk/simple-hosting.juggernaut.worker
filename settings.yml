@@ -1,0 +1,6 @@
+threadsCount: 10
+rabbitMqHost: "localhost"
+rabbitMqPort: 5672
+rabbitMqUsername: rmuser
+rabbitMqPassword: rmpassword
+redisHost: "localhost"
