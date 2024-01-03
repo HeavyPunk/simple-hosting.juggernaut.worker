@@ -1,28 +1,33 @@
 package consumer
 
-import cats.effect.kernel.Resource
-import cats.effect.IO
-import lepus.client.Connection
+import com.rabbitmq.client.{ConnectionFactory}
+import com.rabbitmq.client.DefaultConsumer
+import com.rabbitmq.client.Channel
+import com.rabbitmq.client.AMQP.BasicProperties
+import com.rabbitmq.client.Envelope
+import java.nio.charset.Charset
+import com.rabbitmq.client.Connection
 
-import cats.effect.IO
-import com.comcast.ip4s.* // 1
+class RabbitMqWrapper(connectionFactory: ConnectionFactory) {
+    var connection: Connection = null
+    var channel: Channel = null
 
-import lepus.client.* // 2
-import lepus.protocol.domains.*  // 3
+    def setMessagesHandler(queueInfo: QueueInfo, handler: String => Unit): Unit = {
+        connection = connectionFactory.newConnection()
+        channel = connection.createChannel()
+        channel.basicConsume(queueInfo.name, true, RabbitMqConsumer(channel, handler))
+    }
+    
+    def dispose = {
+        if channel != null then channel.close()
+        if connection != null then connection.close()
+    }
+}
 
-class RabbitMqWrapper(connection: Resource[IO, Connection[IO]]) {
-    def getStream(queueInfo: QueueInfo): fs2.Stream[IO, DeliveredMessage[String]] = {
-        val channel = for {
-            con <- connection
-            ch <- con.channel
-        } yield ch
-
-        val consumer = fs2.Stream
-            .resource(channel)
-            .flatMap(_.messaging.consume[String](
-                QueueName.from(queueInfo.name).getOrElse(QueueName.autoGen),
-                mode = ConsumeMode.NackOnError
-            ))
-        consumer
+class RabbitMqConsumer(channel: Channel, handler: String => Unit) extends DefaultConsumer(channel) {
+    override def handleDelivery(consumerTag: String, envelope: Envelope, properties: BasicProperties, body: Array[Byte]): Unit = {
+        // val deliveryTag = envelope.getDeliveryTag()
+        // channel.basicAck(deliveryTag, false)
+        handler(String(body, Charset.forName("UTF-8")))
     }
 }

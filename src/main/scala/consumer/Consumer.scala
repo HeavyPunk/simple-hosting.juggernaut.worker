@@ -10,9 +10,8 @@ import com.google.inject.Inject
 import parser.TaskParser
 import worker.WorkerFactory
 import scala.reflect.ClassTag
-import common.ResultMonad
+import common.{ ResultMonad, zipWith, enrichWith }
 import common.configuration.Settings
-import cats.effect.IO
 import common.TaskStatus
 import common.TaskModel
 
@@ -22,7 +21,7 @@ class Consumer[TTaskContext : ClassTag, TWorker <: Worker[TTaskContext, _]] @Inj
     taskParser: TaskParser,
     settings: Settings
 ) {
-    val threadPool = Executors.newFixedThreadPool(settings.threadsCount + 1) // NOTE: было бы круто всё-таки выделять потоки per-request
+    val threadPool = Executors.newFixedThreadPool(settings.threadsCount) // NOTE: было бы круто всё-таки выделять потоки per-request
     val executionContext = ExecutionContext.fromExecutor(threadPool)
     given ExecutionContext = executionContext
     var executionTask: Future[Unit] = null
@@ -38,22 +37,19 @@ class Consumer[TTaskContext : ClassTag, TWorker <: Worker[TTaskContext, _]] @Inj
 
     def startScanTask(): Unit = {
         if !isReadyForWork() then throw new IllegalStateException("ScanTask is not ready for work")
-        executionTask = Future {
-            while(!cancellation) {
-                val stream = rabbitClient.getStream(queue)
-                val futures = stream.map(queued => Future {
-                    val worker = workerFactory.createWorker()
-                    taskParser.parse[TaskModel[TTaskContext]](queued.message.payload)
-                        .flatMap(context => {
-                            redis.setTaskStatus(context.taskId, TaskStatus.InProgress)
-                            worker.work(context.taskContext)
-                            redis.setTaskStatus(context.taskId, TaskStatus.Completed)
-                            ResultMonad(())
-                        })
-                })
-                Thread.sleep(10 * 1000)
-            }
-        }
+        rabbitClient.setMessagesHandler(queue, queued => Future {
+            val worker = workerFactory.createWorker()
+            val taskMonad = taskParser.parse[TaskModel](queued)
+            val pipelineResult = taskMonad
+                .flatMap(task => redis.setTaskStatus(task.taskId, TaskStatus.InProgress)).zipWith(taskMonad)
+                .flatMap((_, task) => taskParser.parse[TTaskContext](task.taskContext))
+                .flatMap(context => worker.work(context)).zipWith(taskMonad)
+                .flatMap((_, task) => redis.setTaskStatus(task.taskId, TaskStatus.Completed))
+
+            val (err, _) = pipelineResult.tryGetValue
+            if (err != null)
+                println(err.toString())
+        })
     }
 
     def stopScanTask(force: Boolean = false): Unit = {

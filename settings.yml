@@ -4,3 +4,4 @@ rabbitMqPort: 5672
 rabbitMqUsername: rmuser
 rabbitMqPassword: rmpassword
 redisHost: "localhost"
+redisPort: 6379

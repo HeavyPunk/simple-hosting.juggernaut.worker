@@ -23,7 +23,7 @@ lazy val root = project
     libraryDependencies += "redis.clients" % "jedis" % "4.3.1",
 
     // RabbitMQ
-    libraryDependencies += "dev.hnaderi" %% "lepus-client" % "0.5.0",
+    libraryDependencies += "com.rabbitmq" % "amqp-client" % "5.20.0",
 
     // Logging
     libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.10",

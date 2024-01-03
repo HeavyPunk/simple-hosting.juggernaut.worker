@@ -4,13 +4,18 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import worker.Worker
 import worker.WorkerFactory
 import common.Monad
+import common.ResultMonad
 
 class DownloadFileWorkerFactory extends WorkerFactory[DownloadFileWorker] {
     override def createWorker(): DownloadFileWorker = DownloadFileWorker()
 }
 
 class DownloadFileWorker extends Worker[DownloadFileWorkerContext, Exception] {
-    override def work(context: DownloadFileWorkerContext): Monad[Exception, Unit] = ???
+    override def work(context: DownloadFileWorkerContext): Monad[Exception, Unit] = {
+        println(context.s3Path)
+        println(context.destinationPath)
+        ResultMonad(())
+    }
 }
 
 case class DownloadFileWorkerContext(

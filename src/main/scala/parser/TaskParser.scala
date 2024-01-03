@@ -7,17 +7,21 @@ import common.Monad
 import common.ErrorMonad
 import common.ResultMonad
 
-class TaskCannotBeParsed
+case class TaskCannotBeParsed(message: String)
 
 class TaskParser @Inject() (
     jsonMapper: JsonMapper
 ) {
     def parse[TTaskModel: ClassTag](jsonTask: String): Monad[TaskCannotBeParsed, TTaskModel] = {
-        val t = implicitly[ClassTag[TTaskModel]].runtimeClass
-        val deserialized = jsonMapper.readValue(jsonTask, t)
-        val obj = deserialized.asInstanceOf[TTaskModel]
-        obj match
-            case null => ErrorMonad(TaskCannotBeParsed())
-            case _: TTaskModel => ResultMonad(obj)
+        try {
+            val t = implicitly[ClassTag[TTaskModel]].runtimeClass
+            val deserialized = jsonMapper.readValue(jsonTask, t)
+            val obj = deserialized.asInstanceOf[TTaskModel]
+            obj match
+                case null => ErrorMonad(TaskCannotBeParsed("Parse error"))
+                case _: TTaskModel => ResultMonad(obj)
+        } catch {
+            case e: Exception => ErrorMonad(TaskCannotBeParsed(e.toString()))
+        }
     }
 }
