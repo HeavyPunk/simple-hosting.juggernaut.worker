@@ -9,6 +9,7 @@ import net.codingwell.scalaguice.InjectorExtensions.ScalaInjector
 import parser.TaskParser
 import net.codingwell.scalaguice.ScalaModule
 import worker.downloadfile.DownloadFileWorkerFactory
+import common.clients.ControllerClientFactory
 
 class InfraModule extends AbstractModule with ScalaModule {
     override def configure(): Unit = {
@@ -22,5 +23,6 @@ class InfraModule extends AbstractModule with ScalaModule {
 
         bind[TaskParser]
         bind[DownloadFileWorkerFactory]
+        bind[ControllerClientFactory]
     }
 }
