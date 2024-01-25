@@ -29,6 +29,7 @@ class ClientsModule extends AbstractModule with ScalaModule {
         rabbitConnectionFactory.setUsername(config.rabbitMqUsername)
         rabbitConnectionFactory.setPassword(config.rabbitMqPassword)
         rabbitConnectionFactory.setAutomaticRecoveryEnabled(true)
+        rabbitConnectionFactory.setConnectionTimeout(60 * 1000)
         val rabbitMqWrapper = RabbitMqWrapper(rabbitConnectionFactory)
 
         bind[RabbitMqWrapper].toInstance(rabbitMqWrapper)
